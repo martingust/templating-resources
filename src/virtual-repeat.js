@@ -14,7 +14,7 @@ export class VirtualRepeat {
     this.viewSlot = viewSlot;
     this.observerLocator = observerLocator;
     this.local = 'item';
-    this.touchMultitude = 2;
+    this.touchMultitude = 1;
     this.firefoxMultitude = 15;
     this.mouseMultitude = 1;
     this.keyStep = 120;
