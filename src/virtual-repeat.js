@@ -1,6 +1,7 @@
 import {inject} from 'aurelia-dependency-injection';
 import {ObserverLocator, calcSplices, getChangeRecords} from 'aurelia-binding';
 import {BoundViewFactory, ViewSlot, customAttribute, bindable, templateController} from 'aurelia-templating';
+import {ScrollHandler} from './scroll-handler';
 
 @customAttribute('virtual-repeat')
 @bindable('items')
@@ -14,33 +15,13 @@ export class VirtualRepeat {
     this.viewSlot = viewSlot;
     this.observerLocator = observerLocator;
     this.local = 'item';
-    this.touchMultitude = 1;
-    this.firefoxMultitude = 15;
-    this.mouseMultitude = 1;
-    this.keyStep = 120;
-    this.listeners = [];
-    this.initialized = false;
-    this.hasWheelEvent = 'onwheel' in document;
-    this.hasMouseWheelEvent = 'onmousewheel' in document;
-    this.hasTouch = 'ontouchstart' in document;
-    this.hasKeyDown = 'onkeydown' in document;
-    this.hasTouchWin = navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 1;
-    this.hasPointer = !!window.navigator.msPointerEnabled;
     this.ease = 0.1;
     this.targetY = 0;
     this.currentY = 0;
     this.previousY = 0;
     this.first = 0;
     this.previousFirst = 0;
-    this.isFirefox = navigator.userAgent.indexOf('Firefox') > -1;
     this.numberOfDomElements = 0;
-    this.event = {
-      y: 0,
-      x: 0,
-      deltaX: 0,
-      deltaY: 0,
-      originalEvent: null
-    };
   }
 
   bind(executionContext){
@@ -49,7 +30,9 @@ export class VirtualRepeat {
     this.virtualScrollInner = this.element.parentElement;
     this.virtualScroll.addEventListener('touchmove', function(e) { e.preventDefault(); });
 
-    this.initialize(this.virtualScroll, target => {
+    var scrollHandler = new ScrollHandler();
+
+    scrollHandler.initialize(this.virtualScroll, target => {
       this.targetY += target.deltaY;
       this.targetY = Math.max(-this.scrollViewHeight, this.targetY);
       this.targetY = Math.min(0, this.targetY);
@@ -212,185 +195,31 @@ export class VirtualRepeat {
         }
       }
     }
-
     this.calculateScrollViewHeight();
-  }
-
-  handleSplicesOld(items, splices){
-    var numberOfDomElements = this.numberOfDomElements,
-      viewSlot = this.viewSlot,
-      first = this.first,
-      totalAdded = 0,
-      i, ii, j, k, view, marginTop, addIndex, domAddIndex,
-      childIndex, splice, end, children, length, spliceIndexLow;
-    this.items = items;
-
-    for(i = 0, ii = splices.length; i < ii; ++i){
-      splice = splices[0];
-      addIndex = splices[i].index;
-      end = splice.index + splice.addedCount;
-      totalAdded += splice.addedCount;
-
-      for (; addIndex < end; ++addIndex) {
-        if(addIndex < first + numberOfDomElements){
-          spliceIndexLow = !spliceIndexLow ? first : spliceIndexLow;
-          childIndex = numberOfDomElements - 1;
-          view = viewSlot.children[childIndex];
-          view.executionContext.item = items[addIndex];
-          domAddIndex = addIndex - first;
-          VirtualRepeat.moveItem(viewSlot.children, childIndex, domAddIndex);
-
-          if(childIndex !== addIndex - first){
-            var node = this.virtualScrollInner.children[childIndex];
-            this.virtualScrollInner.insertBefore(node, this.virtualScrollInner.children[domAddIndex]);
-
-            marginTop = this.itemHeight * first + "px";
-            this.virtualScrollInner.style.marginTop = marginTop;
-          }
-        }
-      }
-    }
-
-    this.calculateScrollViewHeight();
-
-    children = viewSlot.children;
-    length = children.length;
-    for(j = 0; j < length; j++){
-      this.updateExecutionContext(children[j].executionContext, children[j].executionContext.$index + totalAdded, length);
-    }
   }
 
   calculateScrollViewHeight(){
-    // TODO Find better way to get total height
-    // 1.1 for bottom margin
+    // TODO Might need bottom margin
     this.scrollViewHeight = (this.items.length * this.itemHeight) - ((this.numberOfDomElements - 1) * this.itemHeight) + 1 * this.itemHeight;
-  }
-
-  initialize(element, listener){
-    if(!this.initialized){
-      this.initListeners(element);
-    }
-    this.listeners.push(listener);
-  }
-
-  initListeners(element) {
-    if(this.hasWheelEvent) element.addEventListener("wheel", e => this.onWheel(e));
-    if(this.hasMouseWheelEvent) element.addEventListener("mousewheel", e => this.onMouseWheel(e));
-
-    if(this.hasTouch) {
-      element.addEventListener("touchstart", e => this.onTouchStart(e));
-      element.addEventListener("touchmove", e => this.onTouchMove(e));
-    }
-
-    if(this.hasPointer && this.hasTouchWin) {
-      this.bodyTouchAction = document.body.style.msTouchAction;
-      element.body.style.msTouchAction = "none";
-      element.addEventListener("MSPointerDown", e => this.onTouchStart(e), true);
-      element.addEventListener("MSPointerMove", e => this.onTouchMove(e), true);
-    }
-
-    if(this.hasKeyDown){
-      element.addEventListener("keydown", e => this.onKeyDown(e), false);
-    }
-
-    this.initialized = true;
-  }
-
-  notify(event) {
-    var i, ii;
-    this.event.x += this.event.deltaX;
-    this.event.y += this.event.deltaY;
-    this.event.originalEvent = event;
-
-    for(i = 0, ii = this.listeners.length; i < ii; ++i) {
-      this.listeners[i](this.event);
-    }
-  }
-
-  onWheel(event) {
-    this.event.deltaX = event.wheelDeltaX || event.deltaX * -1;
-    this.event.deltaY = event.wheelDeltaY || event.deltaY * -1;
-
-    if(this.isFirefox && event.deltaMode == 1) {
-      this.event.deltaX *= this.firefoxMultitude;
-      this.event.deltaY *= this.firefoxMultitude;
-    }
-
-    this.event.deltaX *= this.mouseMultitude;
-    this.event.deltaY *= this.mouseMultitude;
-
-    this.notify(event);
-  }
-
-  onMouseWheel(event) {
-    this.event.deltaX = (event.wheelDeltaX) ? event.wheelDeltaX : 0;
-    this.event.deltaY = (event.wheelDeltaY) ? event.wheelDeltaY : event.wheelDelta;
-
-    this.notify(event);
-  }
-
-  onTouchStart(event) {
-    var t = (event.targetTouches) ? event.targetTouches[0] : event;
-    this.touchStartX = t.pageX;
-    this.touchStartY = t.pageY;
-  }
-
-  onTouchMove(event) {
-    var t = (event.targetTouches) ? event.targetTouches[0] : event;
-
-    this.event.deltaX = (t.pageX - this.touchStartX) * this.touchMultitude;
-    this.event.deltaY = (t.pageY - this.touchStartY) * this.touchMultitude;
-
-    this.touchStartX = t.pageX;
-    this.touchStartY = t.pageY;
-
-    this.notify(event);
-  }
-
-  onKeyDown(event) {
-    this.event.deltaX = this.event.deltaY = 0;
-    switch(event.keyCode) {
-      case 37:
-        this.event.deltaX = -this.keyStep;
-        break;
-      case 39:
-        this.event.deltaX = this.keyStep;
-        break;
-      case 38:
-        this.event.deltaY = this.keyStep;
-        break;
-      case 40:
-        this.event.deltaY = -this.keyStep;
-        break;
-    }
-
-    this.notify(event);
   }
 
   // http://jsperf.com/array-prototype-move
   static moveItem(array, pos1, pos2) {
-    // local variables
     var i, tmp;
-    // cast input parameters to integers
     pos1 = parseInt(pos1, 10);
     pos2 = parseInt(pos2, 10);
-    // if positions are different and inside array
     if (pos1 !== pos2 && 0 <= pos1 && pos1 <= array.length && 0 <= pos2 && pos2 <= array.length) {
-      // save element from position 1
       tmp = array[pos1];
-      // move element down and shift other elements up
       if (pos1 < pos2) {
         for (i = pos1; i < pos2; i++) {
           array[i] = array[i + 1];
         }
       }
-      // move element up and shift other elements down
       else {
         for (i = pos1; i > pos2; i--) {
           array[i] = array[i - 1];
         }
       }
-      // put element from position 1 to destination
       array[pos2] = tmp;
     }
   }
