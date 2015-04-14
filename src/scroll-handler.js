@@ -123,4 +123,24 @@ export class ScrollHandler{
 
     this.notify(event);
   }
+
+  dispose() {
+    if(this.hasWheelEvent) document.removeEventListener("wheel", onWheel);
+    if(this.hasMouseWheelEvent) document.removeEventListener("mousewheel", onMouseWheel);
+
+    if(this.hasTouch) {
+      document.removeEventListener("touchstart", onTouchStart);
+      document.removeEventListener("touchmove", onTouchMove);
+    }
+
+    if(this.hasPointer && this.hasTouchWin) {
+      document.body.style.msTouchAction = this.bodyTouchAction;
+      document.removeEventListener("MSPointerDown", onTouchStart, true);
+      document.removeEventListener("MSPointerMove", onTouchMove, true);
+    }
+
+    if(this.hasKeyDown) document.removeEventListener("keydown", onKeyDown);
+
+    this.initialized = false;
+  }
 }

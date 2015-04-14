@@ -7,13 +7,14 @@ import {ScrollHandler} from './scroll-handler';
 @bindable('items')
 @bindable('local')
 @templateController
-@inject(Element, BoundViewFactory, ViewSlot, ObserverLocator)
+@inject(Element, BoundViewFactory, ViewSlot, ObserverLocator, ScrollHandler)
 export class VirtualRepeat {
-  constructor(element, viewFactory, viewSlot, observerLocator){
+  constructor(element, viewFactory, viewSlot, observerLocator, scrollHandler){
     this.element = element;
     this.viewFactory = viewFactory;
     this.viewSlot = viewSlot;
     this.observerLocator = observerLocator;
+    this.scrollHandler = scrollHandler;
     this.local = 'item';
     this.ease = 0.1;
     this.targetY = 0;
@@ -30,9 +31,7 @@ export class VirtualRepeat {
     this.virtualScrollInner = this.element.parentElement;
     this.virtualScroll.addEventListener('touchmove', function(e) { e.preventDefault(); });
 
-    var scrollHandler = new ScrollHandler();
-
-    scrollHandler.initialize(this.virtualScroll, target => {
+    this.scrollHandler.initialize(this.virtualScroll,  target => {
       this.targetY += target.deltaY;
       this.targetY = Math.max(-this.scrollViewHeight, this.targetY);
       this.targetY = Math.min(0, this.targetY);
@@ -42,6 +41,16 @@ export class VirtualRepeat {
     var row = this.createFullExecutionContext(this.items[0], 0, 1);
     var view = this.viewFactory.create(row);
     this.viewSlot.add(view);
+  }
+
+  unbind(){
+    this.scrollHandler.dispose();
+  }
+
+  scrollListener(target){
+    this.targetY += target.deltaY;
+    this.targetY = Math.max(-this.scrollViewHeight, this.targetY);
+    this.targetY = Math.min(0, this.targetY);
   }
 
   attached(){
