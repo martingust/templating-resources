@@ -15,8 +15,6 @@ export class ScrollHandler{
     this.isFirefox = navigator.userAgent.indexOf('Firefox') > -1;
     this.event = {
       y: 0,
-      x: 0,
-      deltaX: 0,
       deltaY: 0,
       originalEvent: null
     };
@@ -54,7 +52,6 @@ export class ScrollHandler{
 
   notify(event) {
     var i, ii;
-    this.event.x += this.event.deltaX;
     this.event.y += this.event.deltaY;
     this.event.originalEvent = event;
 
@@ -64,22 +61,18 @@ export class ScrollHandler{
   }
 
   onWheel(event) {
-    this.event.deltaX = event.wheelDeltaX || event.deltaX * -1;
     this.event.deltaY = event.wheelDeltaY || event.deltaY * -1;
 
     if(this.isFirefox && event.deltaMode == 1) {
-      this.event.deltaX *= this.firefoxMultitude;
       this.event.deltaY *= this.firefoxMultitude;
     }
 
-    this.event.deltaX *= this.mouseMultitude;
     this.event.deltaY *= this.mouseMultitude;
 
     this.notify(event);
   }
 
   onMouseWheel(event) {
-    this.event.deltaX = (event.wheelDeltaX) ? event.wheelDeltaX : 0;
     this.event.deltaY = (event.wheelDeltaY) ? event.wheelDeltaY : event.wheelDelta;
 
     this.notify(event);
@@ -95,10 +88,8 @@ export class ScrollHandler{
   onTouchMove(event) {
     var t = (event.targetTouches) ? event.targetTouches[0] : event;
 
-    this.event.deltaX = (t.pageX - this.touchStartX) * this.touchMultitude;
     this.event.deltaY = (t.pageY - this.touchStartY) * this.touchMultitude;
 
-    this.touchStartX = t.pageX;
     this.touchStartY = t.pageY;
 
     this.notify(event);
@@ -107,12 +98,6 @@ export class ScrollHandler{
   onKeyDown(event) {
     this.event.deltaX = this.event.deltaY = 0;
     switch(event.keyCode) {
-      case 37:
-        this.event.deltaX = -this.keyStep;
-        break;
-      case 39:
-        this.event.deltaX = this.keyStep;
-        break;
       case 38:
         this.event.deltaY = this.keyStep;
         break;
