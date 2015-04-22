@@ -31,10 +31,16 @@ export class VirtualRepeat {
     this.virtualScrollInner = this.element.parentElement;
     this.virtualScroll.addEventListener('touchmove', function(e) { e.preventDefault(); });
 
-    this.scrollHandler.initialize(this.virtualScroll,  target => {
-      this.targetY += target.deltaY;
-      this.targetY = Math.max(-this.scrollViewHeight, this.targetY);
-      this.targetY = Math.min(0, this.targetY);
+    this.scrollHandler.initialize(this.virtualScroll,  y => {
+      console.log(y);
+       this.targetY -= y;
+       this.targetY = Math.max(-this.scrollViewHeight, this.targetY);
+       this.targetY = Math.min(0, this.targetY);
+       /*var max = this.scrollViewHeight;
+       var min = 0;
+       this.targetY = (y > max) ? max : (y < min) ? min : y;
+      this.targetY = -this.targetY;*/
+       return this.targetY;
     });
 
     // create first item to get the heights
@@ -42,6 +48,13 @@ export class VirtualRepeat {
     var view = this.viewFactory.create(row);
     this.viewSlot.add(view);
   }
+
+  /*scroll(y) {
+    this.offset = (y > max) ? max : (y < min) ? min : y;
+    view.style[xform] = 'translateY(' + (-offset) + 'px)';
+    indicator.style[xform] = 'translateY(' + (offset * relative) + 'px)';
+  }*/
+
 
   unbind(){
     this.scrollHandler.dispose();
@@ -104,11 +117,11 @@ export class VirtualRepeat {
       requestAnimationFrame(() => this.scroll());
       return;
     }
-
+    //console.log(this.currentY);
     this.previousY = this.currentY;
     this.first = Math.ceil(this.currentY / itemHeight) * -1;
     first = this.first;
-
+    //console.log(first);
     if(first > this.previousFirst && first + numberOfDomElements - 1 <= items.length){
       this.previousFirst = first;
 

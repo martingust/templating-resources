@@ -1,131 +1,118 @@
 export class ScrollHandler{
   constructor(){
-    this.touchMultitude = 1;
-    this.firefoxMultitude = 15;
-    this.mouseMultitude = 1;
-    this.keyStep = 120;
-    this.listeners = [];
-    this.initialized = false;
-    this.hasWheelEvent = 'onwheel' in document;
-    this.hasMouseWheelEvent = 'onmousewheel' in document;
-    this.hasTouch = 'ontouchstart' in document;
-    this.hasKeyDown = 'onkeydown' in document;
-    this.hasTouchWin = navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 1;
-    this.hasPointer = !!window.navigator.msPointerEnabled;
-    this.isFirefox = navigator.userAgent.indexOf('Firefox') > -1;
-    this.event = {
-      y: 0,
-      deltaY: 0,
-      originalEvent: null
-    };
+    this.listener = null;
+    this.view = null;
+    this.indicator = null;
+    this.relative = null;
+    this.offset = null;
+    this.reference = null;
+    this.passed = null;
+    this.velocity = null;
+    this.frame = null;
+    this.timestamp = null;
+    this.ticker = null;
+    this.amplitude = null;
+    this.target = null;
+    this.timeConstant = 325;
   }
 
-  initialize(element, listener){
-    if(!this.initialized){
-      this.initListeners(element);
+  initialize(view, listener){
+    this.listener = listener;
+    if (typeof window.ontouchstart !== 'undefined') {view.addEventListener('touchstart', e => this.tap(e));
+      view.addEventListener('touchmove', e => this.drag(e));
+      view.addEventListener('touchend', e => this.release(e));
     }
-    this.listeners.push(listener);
+    view.addEventListener('mousedown', e => this.tap(e));
+    view.addEventListener('mousemove', e => this.drag(e));
+    view.addEventListener('mouseup', e => this.release(e));
+
+    this.offset = 0;
+    this.pressed = false;
   }
 
-  initListeners(element) {
-    if(this.hasWheelEvent) element.addEventListener("wheel", e => this.onWheel(e));
-    if(this.hasMouseWheelEvent) element.addEventListener("mousewheel", e => this.onMouseWheel(e));
-
-    if(this.hasTouch) {
-      element.addEventListener("touchstart", e => this.onTouchStart(e));
-      element.addEventListener("touchmove", e => this.onTouchMove(e));
+  ypos(e){
+    // touch event
+    if (e.targetTouches && (e.targetTouches.length >= 1)) {
+      return e.targetTouches[0].clientY;
     }
 
-    if(this.hasPointer && this.hasTouchWin) {
-      this.bodyTouchAction = document.body.style.msTouchAction;
-      element.body.style.msTouchAction = "none";
-      element.addEventListener("MSPointerDown", e => this.onTouchStart(e), true);
-      element.addEventListener("MSPointerMove", e => this.onTouchMove(e), true);
-    }
-
-    if(this.hasKeyDown){
-      element.addEventListener("keydown", e => this.onKeyDown(e), false);
-    }
-
-    this.initialized = true;
+    // mouse event
+    return e.clientY;
   }
 
-  notify(event) {
-    var i, ii;
-    this.event.y += this.event.deltaY;
-    this.event.originalEvent = event;
+  track() {
+    var now, elapsed, delta, v;
 
-    for(i = 0, ii = this.listeners.length; i < ii; ++i) {
-      this.listeners[i](this.event);
+    now = Date.now();
+    elapsed = now - this.timestamp;
+    this.timestamp = now;
+    delta = this.offset - this.frame;
+    this.frame = this.offset;
+
+    v = 1000 * delta / (1 + elapsed);
+    this.velocity = 0.8 * v + 0.2 * this.velocity;
+  }
+
+  autoScroll() {
+    var elapsed, delta;
+
+    if (this.amplitude) {
+      elapsed = Date.now() - this.timestamp;
+      delta = -this.amplitude * Math.exp(-elapsed / this.timeConstant);
+      if (delta > 0.5 || delta < -0.5) {
+        this.offset = this.listener(delta);
+        requestAnimationFrame(() => this.autoScroll());
+      } else {
+        //this.offset = this.listener(this.target);
+      }
     }
   }
 
-  onWheel(event) {
-    this.event.deltaY = event.wheelDeltaY || event.deltaY * -1;
-
-    if(this.isFirefox && event.deltaMode == 1) {
-      this.event.deltaY *= this.firefoxMultitude;
-    }
-
-    this.event.deltaY *= this.mouseMultitude;
-
-    this.notify(event);
-  }
-
-  onMouseWheel(event) {
-    this.event.deltaY = (event.wheelDeltaY) ? event.wheelDeltaY : event.wheelDelta;
-
-    this.notify(event);
-  }
-
-  onTouchStart(event) {
-    var t = (event.targetTouches) ? event.targetTouches[0] : event;
+  tap(e) {
     this.pressed = true;
-    this.touchStartY = t.pageY;
+    this.reference = this.ypos(e);
 
+    this.velocity = this.amplitude = 0;
+    this.frame = this.offset;
+    this.timestamp = Date.now();
+    clearInterval(this.ticker);
+    this.ticker = setInterval(() => this.track(), 100);
+
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
   }
 
-  onTouchMove(event) {
-    var t = (event.targetTouches) ? event.targetTouches[0] : event;
-
-    this.event.deltaY = (t.pageY - this.touchStartY) * this.touchMultitude;
-
-    this.touchStartY = t.pageY;
-
-    this.notify(event);
+  drag(e) {
+    var y, delta;
+    if (this.pressed) {
+      y = this.ypos(e);
+      delta = this.reference - y;
+      if (delta > 2 || delta < -2) {
+        this.reference = y;
+        console.log('offset: ' + this.offset);
+        console.log('delta: ' + delta);
+        this.offset = this.listener(delta);
+      }
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
   }
 
-  onKeyDown(event) {
-    this.event.deltaX = this.event.deltaY = 0;
-    switch(event.keyCode) {
-      case 38:
-        this.event.deltaY = this.keyStep;
-        break;
-      case 40:
-        this.event.deltaY = -this.keyStep;
-        break;
+  release(e) {
+    this.pressed = false;
+
+    clearInterval(this.ticker);
+    if (this.velocity > 10 || this.velocity < -10) {
+      this.amplitude = 0.01 * this.velocity;
+      this.target = Math.round(this.offset + this.amplitude);
+      this.timestamp = Date.now();
+      requestAnimationFrame(() => this.autoScroll());
     }
 
-    this.notify(event);
-  }
-
-  dispose() {
-    if(this.hasWheelEvent) document.removeEventListener("wheel", onWheel);
-    if(this.hasMouseWheelEvent) document.removeEventListener("mousewheel", onMouseWheel);
-
-    if(this.hasTouch) {
-      document.removeEventListener("touchstart", onTouchStart);
-      document.removeEventListener("touchmove", onTouchMove);
-    }
-
-    if(this.hasPointer && this.hasTouchWin) {
-      document.body.style.msTouchAction = this.bodyTouchAction;
-      document.removeEventListener("MSPointerDown", onTouchStart, true);
-      document.removeEventListener("MSPointerMove", onTouchMove, true);
-    }
-
-    if(this.hasKeyDown) document.removeEventListener("keydown", onKeyDown);
-
-    this.initialized = false;
+    e.preventDefault();
+    e.stopPropagation();
+    return false;
   }
 }
