@@ -1,20 +1,20 @@
 import {inject} from 'aurelia-dependency-injection';
 import {ObserverLocator, calcSplices, getChangeRecords} from 'aurelia-binding';
 import {BoundViewFactory, ViewSlot, customAttribute, bindable, templateController} from 'aurelia-templating';
-import {ScrollHandler} from './scroll-handler';
+import {ScrollListener} from './scroll-listener';
 
 @customAttribute('virtual-repeat')
 @bindable('items')
 @bindable('local')
 @templateController
-@inject(Element, BoundViewFactory, ViewSlot, ObserverLocator, ScrollHandler)
+@inject(Element, BoundViewFactory, ViewSlot, ObserverLocator, ScrollListener)
 export class VirtualRepeat {
-  constructor(element, viewFactory, viewSlot, observerLocator, scrollHandler){
+  constructor(element, viewFactory, viewSlot, observerLocator, scrollListener){
     this.element = element;
     this.viewFactory = viewFactory;
     this.viewSlot = viewSlot;
     this.observerLocator = observerLocator;
-    this.scrollHandler = scrollHandler;
+    this.scrollListener = scrollListener;
     this.local = 'item';
     this.ease = 0.1;
     this.targetY = 0;
@@ -31,15 +31,10 @@ export class VirtualRepeat {
     this.virtualScrollInner = this.element.parentElement;
     this.virtualScroll.addEventListener('touchmove', function(e) { e.preventDefault(); });
 
-    this.scrollHandler.initialize(this.virtualScroll,  y => {
-      console.log(y);
-       this.targetY -= y;
+    this.scrollListener.initialize(this.virtualScroll,  deltaY => {
+       this.targetY += deltaY;
        this.targetY = Math.max(-this.scrollViewHeight, this.targetY);
        this.targetY = Math.min(0, this.targetY);
-       /*var max = this.scrollViewHeight;
-       var min = 0;
-       this.targetY = (y > max) ? max : (y < min) ? min : y;
-      this.targetY = -this.targetY;*/
        return this.targetY;
     });
 
@@ -49,15 +44,8 @@ export class VirtualRepeat {
     this.viewSlot.add(view);
   }
 
-  /*scroll(y) {
-    this.offset = (y > max) ? max : (y < min) ? min : y;
-    view.style[xform] = 'translateY(' + (-offset) + 'px)';
-    indicator.style[xform] = 'translateY(' + (offset * relative) + 'px)';
-  }*/
-
-
   unbind(){
-    this.scrollHandler.dispose();
+    this.scrollListener.dispose();
   }
 
   scrollListener(target){
