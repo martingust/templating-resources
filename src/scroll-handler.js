@@ -14,14 +14,28 @@ export class ScrollHandler{
     this.amplitude = null;
     this.target = null;
     this.timeConstant = 325;
+    this.firefoxMultitude = 15;
+    this.mouseMultitude = 1;
+    this.isFirefox = navigator.userAgent.indexOf('Firefox') > -1;
   }
 
   initialize(view, listener){
     this.listener = listener;
-    if (typeof window.ontouchstart !== 'undefined') {view.addEventListener('touchstart', e => this.tap(e));
+
+    if('onwheel' in document){
+      view.addEventListener("wheel", e => this.onWheel(e));
+    }
+
+    if('onmousewheel' in document){
+      view.addEventListener("mousewheel", e => this.onMouseWheel(e));
+    }
+
+    if (typeof window.ontouchstart !== 'undefined') {
+      view.addEventListener('touchstart', e => this.tap(e));
       view.addEventListener('touchmove', e => this.drag(e));
       view.addEventListener('touchend', e => this.release(e));
     }
+
     view.addEventListener('mousedown', e => this.tap(e));
     view.addEventListener('mousemove', e => this.drag(e));
     view.addEventListener('mouseup', e => this.release(e));
@@ -100,12 +114,30 @@ export class ScrollHandler{
     return false;
   }
 
+  onMouseWheel(event) {
+    var delta = (event.wheelDeltaY) ? -event.wheelDeltaY : -event.wheelDelta;
+
+    this.offset = this.listener(delta);
+  }
+
+  onWheel(event) {
+    var delta = event.wheelDeltaY || event.deltaY * -1;
+
+    if(this.isFirefox && event.deltaMode == 1) {
+      delta *= this.firefoxMultitude;
+    }
+
+    delta *= this.mouseMultitude;
+
+    this.offset = this.listener(-delta);
+  }
+
   release(e) {
     this.pressed = false;
 
     clearInterval(this.ticker);
     if (this.velocity > 10 || this.velocity < -10) {
-      this.amplitude = 0.01 * this.velocity;
+      this.amplitude = 0.1 * this.velocity;
       this.target = Math.round(this.offset + this.amplitude);
       this.timestamp = Date.now();
       requestAnimationFrame(() => this.autoScroll());
