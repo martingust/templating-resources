@@ -16,7 +16,11 @@ export class ScrollHandler{
     this.timeConstant = 325;
     this.firefoxMultitude = 15;
     this.mouseMultitude = 1;
+    this.keyStep = 120;
     this.isFirefox = navigator.userAgent.indexOf('Firefox') > -1;
+    this.hasTouchWin = navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 1;
+    this.hasPointer = !!window.navigator.msPointerEnabled;
+    this.hasKeyDown = 'onkeydown' in document;
   }
 
   initialize(view, listener){
@@ -36,9 +40,16 @@ export class ScrollHandler{
       view.addEventListener('touchend', e => this.release(e));
     }
 
-    view.addEventListener('mousedown', e => this.tap(e));
-    view.addEventListener('mousemove', e => this.drag(e));
-    view.addEventListener('mouseup', e => this.release(e));
+    if(this.hasPointer && this.hasTouchWin) {
+      this.bodyTouchAction = document.body.style.msTouchAction;
+      view.body.style.msTouchAction = "none";
+      view.addEventListener("MSPointerDown", e => this.tap(e), true);
+      view.addEventListener("MSPointerMove", e => this.drag(e), true);
+    }
+
+    if(this.hasKeyDown){
+      view.addEventListener("keydown", e => this.onKeyDown(e), false);
+    }
 
     this.offset = 0;
     this.pressed = false;
@@ -128,6 +139,20 @@ export class ScrollHandler{
     }
 
     delta *= this.mouseMultitude;
+
+    this.offset = this.listener(-delta);
+  }
+
+  onKeyDown(event) {
+    var delta = 0;
+    switch(event.keyCode) {
+      case 38:
+        delta = this.keyStep;
+        break;
+      case 40:
+        delta = -this.keyStep;
+        break;
+    }
 
     this.offset = this.listener(-delta);
   }
