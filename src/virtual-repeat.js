@@ -28,6 +28,8 @@ export class VirtualRepeat {
   bind(executionContext){
     this.executionContext = executionContext;
     this.virtualScroll = this.element.parentElement.parentElement;
+    this.virtualScroll.style.overflow = 'hidden';
+    this.virtualScroll.tabIndex = '999';
     this.virtualScrollInner = this.element.parentElement;
     this.virtualScroll.addEventListener('touchmove', function(e) { e.preventDefault(); });
 
@@ -56,8 +58,9 @@ export class VirtualRepeat {
 
   attached(){
     var virtualScrollHeight, row, view;
-    this.listItems = this.element.parentElement.children;
-    this.itemHeight = this.listItems[0].getBoundingClientRect().height;
+    this.listItems = this.virtualScrollInner.children;
+    this.itemHeight = VirtualRepeat.calcOuterHeight(this.listItems[0]);
+
     virtualScrollHeight = this.virtualScroll.getBoundingClientRect().height;
     this.numberOfDomElements = Math.ceil(virtualScrollHeight / this.itemHeight) + 1;
 
@@ -67,8 +70,19 @@ export class VirtualRepeat {
       this.viewSlot.add(view);
     }
 
-    this.calculateScrollViewHeight();
+    this.calcScrollViewHeight();
     this.processItems();
+  }
+
+  static calcOuterHeight(element){
+    var height, style;
+    height = element.getBoundingClientRect().height;
+    style = element.currentStyle || window.getComputedStyle(element);
+    height += parseInt(style.borderTopWidth);
+    height += parseInt(style.borderBottomWidth);
+    height += parseInt(style.paddingTop);
+    height += parseInt(style.paddingBottom);
+    return height;
   }
 
   processItems(){
@@ -105,11 +119,10 @@ export class VirtualRepeat {
       requestAnimationFrame(() => this.scroll());
       return;
     }
-    //console.log(this.currentY);
+
     this.previousY = this.currentY;
     this.first = Math.ceil(this.currentY / itemHeight) * -1;
     first = this.first;
-    //console.log(first);
     if(first > this.previousFirst && first + numberOfDomElements - 1 <= items.length){
       this.previousFirst = first;
 
@@ -205,15 +218,16 @@ export class VirtualRepeat {
         }
       }
     }
-    this.calculateScrollViewHeight();
+    this.calcScrollViewHeight();
   }
 
-  calculateScrollViewHeight(){
+  calcScrollViewHeight(){
     // TODO Might need bottom margin
     this.scrollViewHeight = (this.items.length * this.itemHeight) - ((this.numberOfDomElements - 1) * this.itemHeight) + 1 * this.itemHeight;
   }
 
   // http://jsperf.com/array-prototype-move
+  // TODO Don't do this, too slow for large lists
   static moveItem(array, pos1, pos2) {
     var i, tmp;
     pos1 = parseInt(pos1, 10);
