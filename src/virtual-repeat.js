@@ -35,6 +35,8 @@ export class VirtualRepeat {
 
     this.scrollListener.initialize(this.virtualScroll,  deltaY => {
        this.targetY += deltaY;
+      console.log('this.scrollViewHeight ' + this.scrollViewHeight);
+      console.log('this.targetY ' + this.targetY);
        this.targetY = Math.max(-this.scrollViewHeight, this.targetY);
        this.targetY = Math.min(0, this.targetY);
        return this.targetY;
@@ -57,12 +59,12 @@ export class VirtualRepeat {
   }
 
   attached(){
-    var virtualScrollHeight, row, view;
+    var row, view;
     this.listItems = this.virtualScrollInner.children;
     this.itemHeight = VirtualRepeat.calcOuterHeight(this.listItems[0]);
 
-    virtualScrollHeight = this.virtualScroll.getBoundingClientRect().height;
-    this.numberOfDomElements = Math.ceil(virtualScrollHeight / this.itemHeight) + 1;
+    this.virtualScrollHeight = this.virtualScroll.getBoundingClientRect().height;
+    this.numberOfDomElements = Math.ceil(this.virtualScrollHeight / this.itemHeight) + 1;
 
     for(var i = 1, ii = this.numberOfDomElements; i < ii; ++i){
       row = this.createFullExecutionContext(this.items[i], i, ii);
@@ -78,10 +80,8 @@ export class VirtualRepeat {
     var height, style;
     height = element.getBoundingClientRect().height;
     style = element.currentStyle || window.getComputedStyle(element);
-    height += parseInt(style.borderTopWidth);
-    height += parseInt(style.borderBottomWidth);
-    height += parseInt(style.paddingTop);
-    height += parseInt(style.paddingBottom);
+    height += parseInt(style.marginTop);
+    height += parseInt(style.marginBottom);
     return height;
   }
 
@@ -123,6 +123,7 @@ export class VirtualRepeat {
     this.previousY = this.currentY;
     this.first = Math.ceil(this.currentY / itemHeight) * -1;
     first = this.first;
+
     if(first > this.previousFirst && first + numberOfDomElements - 1 <= items.length){
       this.previousFirst = first;
 
@@ -200,9 +201,6 @@ export class VirtualRepeat {
       view = viewSlot.children[i];
       view.executionContext[this.local] = items[first + i];
       view.executionContext = this.updateExecutionContext(view.executionContext, first + i, items.length);
-      if(!view.executionContext[this.local]){
-        viewSlot.removeAt(view.executionContext.$index);
-      }
     }
 
     for(i = 0, ii = splices.length; i < ii; ++i){
@@ -223,28 +221,6 @@ export class VirtualRepeat {
 
   calcScrollViewHeight(){
     // TODO Might need bottom margin
-    this.scrollViewHeight = (this.items.length * this.itemHeight) - ((this.numberOfDomElements - 1) * this.itemHeight) + 1 * this.itemHeight;
-  }
-
-  // http://jsperf.com/array-prototype-move
-  // TODO Don't do this, too slow for large lists
-  static moveItem(array, pos1, pos2) {
-    var i, tmp;
-    pos1 = parseInt(pos1, 10);
-    pos2 = parseInt(pos2, 10);
-    if (pos1 !== pos2 && 0 <= pos1 && pos1 <= array.length && 0 <= pos2 && pos2 <= array.length) {
-      tmp = array[pos1];
-      if (pos1 < pos2) {
-        for (i = pos1; i < pos2; i++) {
-          array[i] = array[i + 1];
-        }
-      }
-      else {
-        for (i = pos1; i > pos2; i--) {
-          array[i] = array[i - 1];
-        }
-      }
-      array[pos2] = tmp;
-    }
+    this.scrollViewHeight = (this.items.length * this.itemHeight) - this.virtualScrollHeight;
   }
 }
