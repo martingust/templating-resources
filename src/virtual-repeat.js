@@ -194,7 +194,7 @@ export class VirtualRepeat {
       viewSlot = this.viewSlot,
       first = this.first,
       totalAdded = 0,
-      i, ii, view, marginTop, addIndex, splice, end, atBottom;
+      i, ii, j, view, marginTop, addIndex, splice, end, atBottom;
     this.items = items;
 
     for(i = 0, ii = viewSlot.children.length; i < ii; ++i){
@@ -216,6 +216,14 @@ export class VirtualRepeat {
         }
       }
     }
+
+    if(items.length < numberOfDomElements){
+      var limit = numberOfDomElements - (numberOfDomElements - items.length) - 1;
+      for(j = 0; j < numberOfDomElements; ++j){
+        this.virtualScrollInner.children[j].style.display = j >= limit ? 'none' : 'block';
+      }
+    }
+
     this.calcScrollViewHeight();
   }
 
