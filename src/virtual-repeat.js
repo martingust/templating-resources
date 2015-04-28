@@ -25,7 +25,7 @@ export class VirtualRepeat {
     this.numberOfDomElements = 0;
   }
 
-  bind(executionContext){
+  bind(executionContext){    
     this.executionContext = executionContext;
     this.virtualScroll = this.element.parentElement.parentElement;
     this.virtualScroll.style.overflow = 'hidden';
@@ -59,29 +59,34 @@ export class VirtualRepeat {
   }
 
   attached(){
+    console.log('attached');
+    debugger;
     var row, view;
     this.listItems = this.virtualScrollInner.children;
     this.itemHeight = VirtualRepeat.calcOuterHeight(this.listItems[0]);
-
+    console.log('66');
     this.virtualScrollHeight = this.virtualScroll.getBoundingClientRect().height;
     this.numberOfDomElements = Math.ceil(this.virtualScrollHeight / this.itemHeight) + 1;
-
+    console.log('69');
     for(var i = 1, ii = this.numberOfDomElements; i < ii; ++i){
       row = this.createFullExecutionContext(this.items[i], i, ii);
       view = this.viewFactory.create(row);
       this.viewSlot.add(view);
     }
-
+    console.log('75');
     this.calcScrollViewHeight();
     this.processItems();
+    console.log('78');
   }
 
   static calcOuterHeight(element){
-    var height, style;
+    var height, style, marginTop, marginBottom;
     height = element.getBoundingClientRect().height;
     style = element.currentStyle || window.getComputedStyle(element);
-    height += parseInt(style.marginTop);
-    height += parseInt(style.marginBottom);
+    marginTop = parseInt(style.marginTop);
+    marginBottom = parseInt(style.marginBottom);
+    height += Number.isNaN(marginTop) ? 0 : marginTop;
+    height += Number.isNaN(marginBottom) ? 0 : marginBottom;
     return height;
   }
 
@@ -96,7 +101,7 @@ export class VirtualRepeat {
       var node = this.virtualScrollInner.children[i];
       node.className = node.className + ' ' + i;
     }
-
+    console.log('101');
     this.disposeSubscription = observer.subscribe(splices => {
       this.handleSplices(items, splices);
     });
@@ -105,6 +110,7 @@ export class VirtualRepeat {
   }
 
   scroll() {
+    console.log('110');
     var scrollView = this.virtualScrollInner,
       itemHeight = this.itemHeight,
       items = this.items,
