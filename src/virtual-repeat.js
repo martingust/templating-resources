@@ -27,10 +27,11 @@ export class VirtualRepeat {
 
   bind(executionContext){
     this.executionContext = executionContext;
-    this.virtualScroll = this.element.parentElement.parentElement;
+    this.virtualScrollInner = this.element.parentElement;
+    this.virtualScroll = this.virtualScrollInner.parentElement;
     this.virtualScroll.style.overflow = 'hidden';
     this.virtualScroll.tabIndex = '999';
-    this.virtualScrollInner = this.element.parentElement;
+
     this.virtualScroll.addEventListener('touchmove', function(e) { e.preventDefault(); });
 
     this.scrollHandler.initialize(this.virtualScroll,  deltaY => {
@@ -55,10 +56,11 @@ export class VirtualRepeat {
   }
 
   attached(){
-    var row, view;
+    var items = this.items,
+        observer, row, view;
+
     this.listItems = this.virtualScrollInner.children;
     this.itemHeight = VirtualRepeat.calcOuterHeight(this.listItems[0]);
-
     this.virtualScrollHeight = VirtualRepeat.calcScrollHeight(this.virtualScroll);
     this.numberOfDomElements = Math.ceil(this.virtualScrollHeight / this.itemHeight) + 1;
 
@@ -69,7 +71,20 @@ export class VirtualRepeat {
     }
 
     this.calcScrollViewHeight();
-    this.processItems();
+
+    observer = this.observerLocator.getArrayObserver(items);
+
+    // very temp for debugging
+    for(i = 0, ii = this.virtualScrollInner.children.length; i < ii; ++i){
+      var node = this.virtualScrollInner.children[i];
+      node.className = node.className + ' ' + i;
+    }
+
+    this.disposeSubscription = observer.subscribe(splices => {
+      this.handleSplices(items, splices);
+    });
+
+    this.scroll();
   }
 
   handleContainerResize(){
@@ -92,51 +107,17 @@ export class VirtualRepeat {
     this.calcScrollViewHeight();
   }
 
-  static calcOuterHeight(element){
-    var height, style, marginTop, marginBottom;
-    height = element.getBoundingClientRect().height;
-    style = element.currentStyle || window.getComputedStyle(element);
-    marginTop = parseInt(style.marginTop);
-    marginBottom = parseInt(style.marginBottom);
-    height += Number.isNaN(marginTop) ? 0 : marginTop;
-    height += Number.isNaN(marginBottom) ? 0 : marginBottom;
-
-    return height;
-  }
-
-  static calcScrollHeight(element){
-    var height, style, borderBottomWidth, borderTopWidth;
-    height = element.getBoundingClientRect().height;
-    style = element.currentStyle || window.getComputedStyle(element);
-    borderTopWidth = parseInt(style.borderTopWidth);
-    borderBottomWidth = parseInt(style.borderBottomWidth);
-    height -= Number.isNaN(borderTopWidth) ? 0 : borderTopWidth;
-    height -= Number.isNaN(borderBottomWidth) ? 0 : borderBottomWidth;
-    return height;
-  }
-
-  processItems(){
-    var items = this.items, observer;
-
-    observer = this.observerLocator.getArrayObserver(items);
-
-    this.disposeSubscription = observer.subscribe(splices => {
-      this.handleSplices(items, splices);
-    });
-
-    this.scroll();
-  }
-
   scroll() {
     var scrollView = this.virtualScrollInner,
+      childNodes = scrollView.childNodes,
       itemHeight = this.itemHeight,
       items = this.items,
       viewSlot = this.viewSlot,
       numberOfDomElements =  this.numberOfDomElements,
-      node, marginTop, translateStyle, view, first;
+      element, viewStart, viewEnd, marginTop, translateStyle, view, first, childNodesLength;
 
     this.currentY += (this.targetY - this.currentY) * this.ease;
-    this.currentY = Math.round(this.currentY * 1);
+    this.currentY = Math.round(this.currentY);
 
     if(this.currentY === this.previousY){
       requestAnimationFrame(() => this.scroll());
@@ -151,14 +132,17 @@ export class VirtualRepeat {
       this.previousFirst = first;
 
       view = viewSlot.children[0];
-      console.log('Update at: ', first + numberOfDomElements - 1);
       view.executionContext = this.updateExecutionContext(view.executionContext, first + numberOfDomElements - 1, items.length);
       view.executionContext[this.local] = items[first + numberOfDomElements - 1];
       viewSlot.children.push(viewSlot.children.shift());
 
-      // TODO move view container comments
-      node = scrollView.children[0];
-      scrollView.insertBefore(node, scrollView.children[numberOfDomElements]);
+      viewStart = VirtualRepeat.getNthNode(childNodes, 1, 8);
+      element = VirtualRepeat.getNthNode(childNodes, 1, 1);
+      viewEnd = VirtualRepeat.getNthNode(childNodes, 2, 8);
+
+      scrollView.insertBefore(viewEnd, scrollView.children[numberOfDomElements]);
+      scrollView.insertBefore(element, viewEnd);
+      scrollView.insertBefore(viewStart, element);
 
       marginTop = itemHeight * first + "px";
       scrollView.style.marginTop = marginTop;
@@ -171,8 +155,13 @@ export class VirtualRepeat {
       view.executionContext = this.updateExecutionContext(view.executionContext, first, items.length);
       viewSlot.children.unshift(viewSlot.children.splice(-1,1)[0]);
 
-      node = scrollView.children[numberOfDomElements - 1];
-      scrollView.insertBefore(node, scrollView.children[0]);
+      viewStart = VirtualRepeat.getNthNode(childNodes, 1, 8, true);
+      element = VirtualRepeat.getNthNode(childNodes, 2, 1, true);
+      viewEnd = VirtualRepeat.getNthNode(childNodes, 2, 8, true);
+
+      scrollView.insertBefore(viewEnd, scrollView.childNodes[1]);
+      scrollView.insertBefore(element, viewEnd);
+      scrollView.insertBefore(viewStart, element);
 
       marginTop = itemHeight * first + "px";
       scrollView.style.marginTop = marginTop;
@@ -185,6 +174,27 @@ export class VirtualRepeat {
     this.virtualScrollInner.style.transform = translateStyle;
 
     requestAnimationFrame(() => this.scroll());
+  }
+
+  static getNthNode(nodes, n, nodeType, fromBottom) {
+    var foundCount = 0, i = 0, found, node, lastIndex;
+
+    lastIndex = nodes.length - 1;
+
+    if(fromBottom){ i = lastIndex; }
+
+    do{
+      node = nodes[i];
+      if(node.nodeType === nodeType){
+        ++foundCount;
+        if(foundCount === n){
+          found = true;
+        }
+      }
+      if(fromBottom){ --i; }else{ ++i; }
+    } while(!found || i === lastIndex || i === 0);
+
+    return node;
   }
 
   createBaseExecutionContext(data){
@@ -214,27 +224,19 @@ export class VirtualRepeat {
     return context;
   }
 
-  updateItems(){
-    var viewSlot = this.viewSlot,
-        items = this.items,
-        i, ii, view;
+  handleSplices(items, splices){
+    var numberOfDomElements = this.numberOfDomElements,
+      viewSlot = this.viewSlot,
+      first = this.first,
+      totalAdded = 0,
+      view, i, ii, j, marginTop, addIndex, splice, end, atBottom;
+    this.items = items;
 
     for(i = 0, ii = viewSlot.children.length; i < ii; ++i){
       view = viewSlot.children[i];
       view.executionContext[this.local] = items[this.first + i];
       view.executionContext = this.updateExecutionContext(view.executionContext, this.first + i, items.length);
     }
-  }
-
-  handleSplices(items, splices){
-    var numberOfDomElements = this.numberOfDomElements,
-      viewSlot = this.viewSlot,
-      first = this.first,
-      totalAdded = 0,
-      i, ii, j, view, marginTop, addIndex, splice, end, atBottom;
-    this.items = items;
-
-    this.updateItems();
 
     for(i = 0, ii = splices.length; i < ii; ++i){
       splice = splices[0];
@@ -263,4 +265,28 @@ export class VirtualRepeat {
   calcScrollViewHeight(){
     this.scrollViewHeight = (this.items.length * this.itemHeight) - this.virtualScrollHeight;
   }
+
+  static getStyleValue(element, style){
+    var currentStyle, styleValue;
+    currentStyle = element.currentStyle || window.getComputedStyle(element);
+    styleValue = parseInt(currentStyle[style]);
+    return Number.isNaN(styleValue) ? 0 : styleValue;
+  }
+
+  static calcOuterHeight(element){
+    var height;
+    height = element.getBoundingClientRect().height;
+    height += VirtualRepeat.getStyleValue(element, 'marginTop');
+    height += VirtualRepeat.getStyleValue(element, 'marginBottom');
+    return height;
+  }
+
+  static calcScrollHeight(element){
+    var height;
+    height = element.getBoundingClientRect().height;
+    height -= VirtualRepeat.getStyleValue(element, 'borderTopWidth');
+    height -= VirtualRepeat.getStyleValue(element, 'borderBottomWidth');
+    return height;
+  }
+
 }
