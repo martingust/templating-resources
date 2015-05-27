@@ -16,25 +16,34 @@ export class VirtualRepeat {
     this.observerLocator = observerLocator;
     this.scrollHandler = scrollHandler;
     this.local = 'item';
-    this.ease = 0.1;
+    this.ease = 1;
     this.targetY = 0;
     this.currentY = 0;
     this.previousY = 0;
     this.first = 0;
     this.previousFirst = 0;
     this.numberOfDomElements = 0;
+    this.indicatorMinHeight = 15;
   }
 
   bind(executionContext){
     this.executionContext = executionContext;
     this.virtualScrollInner = this.element.parentElement;
     this.virtualScroll = this.virtualScrollInner.parentElement;
+    this.createScrollIndicator();
     this.virtualScroll.style.overflow = 'hidden';
     this.virtualScroll.tabIndex = '999';
+    this.currentEase = this.ease;
 
     this.virtualScroll.addEventListener('touchmove', function(e) { e.preventDefault(); });
 
-    this.scrollHandler.initialize(this.virtualScroll,  deltaY => {
+    this.scrollHandler.initialize(this.virtualScroll,  (deltaY, ease) => {
+      if(ease){
+        this.currentEase = ease;
+      }else{
+        this.currentEase = this.ease;
+      }
+
       this.targetY += deltaY;
       this.targetY = Math.max(-this.scrollViewHeight, this.targetY);
       this.targetY = Math.min(0, this.targetY);
@@ -71,6 +80,7 @@ export class VirtualRepeat {
     }
 
     this.calcScrollViewHeight();
+    this.calcIndicatorHeight();
 
     observer = this.observerLocator.getArrayObserver(items);
 
@@ -114,9 +124,9 @@ export class VirtualRepeat {
       items = this.items,
       viewSlot = this.viewSlot,
       numberOfDomElements =  this.numberOfDomElements,
-      element, viewStart, viewEnd, marginTop, translateStyle, view, first, childNodesLength;
+      element, viewStart, viewEnd, marginTop, translateStyle, view, first;
 
-    this.currentY += (this.targetY - this.currentY) * this.ease;
+    this.currentY += (this.targetY - this.currentY) * this.currentEase;
     this.currentY = Math.round(this.currentY);
 
     if(this.currentY === this.previousY){
@@ -168,33 +178,26 @@ export class VirtualRepeat {
     }
 
     translateStyle = "translate3d(0px," + this.currentY + "px,0px)";
-
     this.virtualScrollInner.style.webkitTransform = translateStyle;
     this.virtualScrollInner.style.msTransform = translateStyle;
     this.virtualScrollInner.style.transform = translateStyle;
 
+    // TODO make scroll indicator optional
+    this.scrollIndicator();
+
     requestAnimationFrame(() => this.scroll());
   }
 
-  static getNthNode(nodes, n, nodeType, fromBottom) {
-    var foundCount = 0, i = 0, found, node, lastIndex;
+  scrollIndicator(){
+    var scrolledPercentage, indicatorTranslateStyle;
 
-    lastIndex = nodes.length - 1;
+    scrolledPercentage = (-this.currentY) / ((this.items.length * this.itemHeight) - this.virtualScrollHeight);
+    this.indicatorY = (this.virtualScrollHeight - this.indicatorHeight) * scrolledPercentage;
 
-    if(fromBottom){ i = lastIndex; }
-
-    do{
-      node = nodes[i];
-      if(node.nodeType === nodeType){
-        ++foundCount;
-        if(foundCount === n){
-          found = true;
-        }
-      }
-      if(fromBottom){ --i; }else{ ++i; }
-    } while(!found || i === lastIndex || i === 0);
-
-    return node;
+    indicatorTranslateStyle = "translate3d(0px," + this.indicatorY  + "px,0px)";
+    this.indicator.style.webkitTransform = indicatorTranslateStyle;
+    this.indicator.style.msTransform = indicatorTranslateStyle;
+    this.indicator.style.transform = indicatorTranslateStyle;
   }
 
   createBaseExecutionContext(data){
@@ -260,10 +263,39 @@ export class VirtualRepeat {
     }
 
     this.calcScrollViewHeight();
+    this.calcIndicatorHeight();
+    this.scrollIndicator();
   }
 
   calcScrollViewHeight(){
     this.scrollViewHeight = (this.items.length * this.itemHeight) - this.virtualScrollHeight;
+  }
+
+  calcIndicatorHeight(){
+    this.indicatorHeight = this.virtualScrollHeight * (this.virtualScrollHeight / this.scrollViewHeight);
+    if(this.indicatorHeight < this.indicatorMinHeight){
+      this.indicatorHeight = this.indicatorMinHeight;
+    }
+
+    if(this.indicatorHeight >= this.scrollViewHeight){
+      this.indicator.style.visibility = 'hidden';
+    }else{
+      this.indicator.style.visibility = '';
+    }
+
+    this.indicator.style.height = this.indicatorHeight + 'px';
+  }
+
+  createScrollIndicator(){
+    this.indicator = document.createElement('div');
+    this.virtualScroll.appendChild(this.indicator);
+    this.indicator.classList.add('au-scroll-indicator');
+    this.indicator.style.backgroundColor = '#cccccc';
+    this.indicator.style.top = '0px';
+    this.indicator.style.right = '5px';
+    this.indicator.style.width = '4px';
+    this.indicator.style.position = 'absolute';
+    this.indicator.style.opacity = '0.6'
   }
 
   static getStyleValue(element, style){
@@ -289,4 +321,24 @@ export class VirtualRepeat {
     return height;
   }
 
+  static getNthNode(nodes, n, nodeType, fromBottom) {
+    var foundCount = 0, i = 0, found, node, lastIndex;
+
+    lastIndex = nodes.length - 1;
+
+    if(fromBottom){ i = lastIndex; }
+
+    do{
+      node = nodes[i];
+      if(node.nodeType === nodeType){
+        ++foundCount;
+        if(foundCount === n){
+          found = true;
+        }
+      }
+      if(fromBottom){ --i; } else { ++i; }
+    } while(!found || i === lastIndex || i === 0);
+
+    return node;
+  }
 }

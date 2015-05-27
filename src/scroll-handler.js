@@ -14,7 +14,7 @@ export class ScrollHandler{
     this.amplitude = null;
     this.target = null;
     this.timeConstant = 325;
-    this.firefoxMultitude = 15;
+    this.firefoxMultitude = 30;
     this.mouseMultitude = 1;
     this.keyStep = 120;
     this.isFirefox = navigator.userAgent.indexOf('Firefox') > -1;
@@ -23,6 +23,8 @@ export class ScrollHandler{
     this.hasKeyDown = 'onkeydown' in document;
     this.hasWheelEvent = 'onwheel' in document;
     this.hasMouseWheelEvent = 'onmousewheel' in document;
+    this.prevFrame = 0;
+    this.touchOnSameFrameCount = 0;
   }
 
   initialize(view, listener){
@@ -65,6 +67,18 @@ export class ScrollHandler{
     return event.clientY;
   }
 
+  autoScroll() {
+    var elapsed, delta;
+    if (this.amplitude) {
+      elapsed = Date.now() - this.timestamp;
+      delta = this.amplitude * Math.exp(-elapsed / this.timeConstant);
+      if (delta > 0.5 || delta < -0.5) {
+        this.offset = this.listener(delta);
+        requestAnimationFrame(() => this.autoScroll());
+      }
+    }
+  }
+
   track() {
     var now, elapsed, delta, v;
 
@@ -75,20 +89,7 @@ export class ScrollHandler{
     this.frame = this.offset;
 
     v = 1000 * delta / (1 + elapsed);
-    this.velocity = 0.8 * v + 0.2 * this.velocity;
-  }
-
-  autoScroll() {
-    var elapsed, delta;
-
-    if (this.amplitude) {
-      elapsed = Date.now() - this.timestamp;
-      delta = this.amplitude * Math.exp(-elapsed / this.timeConstant);
-      if (delta > 0.5 || delta < -0.5) {
-        this.offset = this.listener(delta);
-        requestAnimationFrame(() => this.autoScroll());
-      }
-    }
+    this.velocity = 0.3 * v + 0.2 * this.velocity;
   }
 
   touchMove(event) {
@@ -114,7 +115,7 @@ export class ScrollHandler{
     this.frame = this.offset;
     this.timestamp = Date.now();
     clearInterval(this.ticker);
-    this.ticker = setInterval(() => this.track(), 100);
+    this.ticker = setInterval(() => this.track(), 10);
 
     event.preventDefault();
     event.stopPropagation();
@@ -126,7 +127,7 @@ export class ScrollHandler{
 
     clearInterval(this.ticker);
     if (this.velocity > 10 || this.velocity < -10) {
-      this.amplitude = 0.1 * this.velocity;
+      this.amplitude = 0.2 * this.velocity;
       this.target = Math.round(this.offset + this.amplitude);
       this.timestamp = Date.now();
       requestAnimationFrame(() => this.autoScroll());
@@ -148,11 +149,12 @@ export class ScrollHandler{
 
     if(this.isFirefox && event.deltaMode == 1) {
       delta *= this.firefoxMultitude;
+      delta = -delta;
     }
 
     delta *= this.mouseMultitude;
 
-    this.offset = this.listener(delta);
+    this.offset = this.listener(delta, 0.1);
   }
 
   keyDown(event) {
@@ -167,5 +169,9 @@ export class ScrollHandler{
     }
 
     this.offset = this.listener(delta);
+  }
+
+  dispose(){
+    // TODO Implement
   }
 }
