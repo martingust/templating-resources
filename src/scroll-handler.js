@@ -18,13 +18,9 @@ export class ScrollHandler{
     this.mouseMultitude = 1;
     this.keyStep = 120;
     this.isFirefox = navigator.userAgent.indexOf('Firefox') > -1;
-    this.hasTouchWin = navigator.msMaxTouchPoints && navigator.msMaxTouchPoints > 1;
-    this.hasPointer = !!window.navigator.msPointerEnabled;
     this.hasKeyDown = 'onkeydown' in document;
     this.hasWheelEvent = 'onwheel' in document;
     this.hasMouseWheelEvent = 'onmousewheel' in document;
-    this.prevFrame = 0;
-    this.touchOnSameFrameCount = 0;
   }
 
   initialize(view, listener){
@@ -42,13 +38,6 @@ export class ScrollHandler{
       view.addEventListener('touchstart', e => this.touchStart(e));
       view.addEventListener('touchmove', e => this.touchMove(e));
       view.addEventListener('touchend', e => this.touchEnd(e));
-    }
-
-    if(this.hasPointer && this.hasTouchWin) {
-      this.bodyTouchAction = document.body.style.msTouchAction;
-      view.body.style.msTouchAction = "none";
-      view.addEventListener("MSPointerDown", e => this.tap(e), true);
-      view.addEventListener("MSPointerMove", e => this.drag(e), true);
     }
 
     if(this.hasKeyDown){

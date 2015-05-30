@@ -50,6 +50,7 @@ export class VirtualRepeat {
       return this.targetY;
     });
 
+    // TODO Fix this
     window.onresize = () => {
       this.handleContainerResize();
     };
