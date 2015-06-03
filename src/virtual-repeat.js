@@ -85,10 +85,12 @@ export class VirtualRepeat {
 
     observer = this.observerLocator.getArrayObserver(items);
 
-    // very temp for debugging
     for(i = 0, ii = this.virtualScrollInner.children.length; i < ii; ++i){
       var node = this.virtualScrollInner.children[i];
+      // temp for debugging
       node.className = node.className + ' ' + i;
+      // fix weird rendering behavior in Chrome on Android
+      node.style['-webkit-backface-visibility'] = 'hidden';
     }
 
     this.disposeSubscription = observer.subscribe(splices => {
@@ -127,10 +129,10 @@ export class VirtualRepeat {
       numberOfDomElements =  this.numberOfDomElements,
       element, viewStart, viewEnd, marginTop, translateStyle, view, first;
 
-    this.currentY += (this.targetY - this.currentY) * this.currentEase;
-    this.currentY = Math.round(this.currentY);
-
     if(this.currentY === this.previousY){
+      this.currentY += (this.targetY - this.currentY) * this.currentEase;
+      this.currentY = Math.round(this.currentY);
+
       requestAnimationFrame(() => this.scroll());
       return;
     }
